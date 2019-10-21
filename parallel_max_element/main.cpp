@@ -4,6 +4,10 @@
 #include <algorithm>
 #include <vector>
 
+// TODO after making this work as is, add overloads.
+// take a comparison function
+// take a number of threads allowed
+// take a thread provider or manager
 template<typename iterator>
 iterator ParalellMaxElement(iterator begin, iterator end)
 {
