@@ -81,3 +81,5 @@ TEST_CASE("Run all the tests")
         REQUIRE(expectedResult == GetParallelResulPartialSums(testData));
     }
 }
+
+// Now add performance tests to compare the three methods
