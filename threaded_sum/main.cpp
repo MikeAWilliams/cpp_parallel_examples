@@ -1,4 +1,5 @@
 #define CATCH_CONFIG_MAIN 
+#define CATCH_CONFIG_ENABLE_BENCHMARKING
 #include "catch2/catch.hpp"
 
 #include <random>
@@ -80,4 +81,23 @@ TEST_CASE("Run all the tests")
     {
         REQUIRE(expectedResult == GetParallelResulPartialSums(testData));
     }
+}
+
+TEST_CASE("benchmarks")
+{
+    auto testData {GetTestData(12, 100'000)};
+    BENCHMARK("Mutex")
+    {
+      GetParallelResulMutex(testData);
+    };
+
+    BENCHMARK("Atomic")
+    {
+      GetParallelResulAtomic(testData);
+    };
+
+    BENCHMARK("PartialSum")
+    {
+      GetParallelResulPartialSums(testData);
+    };
 }
