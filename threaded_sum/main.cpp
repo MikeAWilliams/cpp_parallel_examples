@@ -1,8 +1,10 @@
 #define CATCH_CONFIG_MAIN 
 #define CATCH_CONFIG_ENABLE_BENCHMARKING
 #include "catch2/catch.hpp"
+#include <tl/function_ref.hpp>
 
 #include <atomic>
+#include <functional>
 #include <future>
 #include <thread>
 #include <mutex>
@@ -27,80 +29,69 @@ std::vector<std::vector<bool>> GetTestData(const size_t vectors, const size_t el
     return result;
 }
 
+void ComputeSumOnIndividualVector(const std::vector<bool>& data, tl::function_ref<void()> sum_function)
+{
+    for(const auto & item : data)
+    {
+        if(item)
+        {
+            sum_function();
+        }
+    }
+}
+
 size_t GetSerialResult(const std::vector<std::vector<bool>>& input)
 {
     size_t result {0};
-    for(const auto & vec : input)
+    for(const auto & data : input)
     {
-        for(const auto & item : vec)
+        ComputeSumOnIndividualVector(data, [&result]()
         {
-            if(item)
-            {
-                ++result;
-            }
-        }
+            ++result;
+        });
     }
     return result;
 }
 
-size_t GetParallelResulMutex(const std::vector<std::vector<bool>>& input)
+void RunSumUsingVectorOfFutures(const std::vector<std::vector<bool>>& input, tl::function_ref<void()> sum_function)
 {
-    size_t result {0};
-    std::mutex mtx;
-
-    // spawn a number of threads equal to input.size() and have each one add to result
-    // use a mutex to protect result
-    std::vector<std::future<int>> futures;
+    std::vector<std::future<void>> futures;
     futures.reserve(input.size());
     for(size_t index{0}; index < input.size(); ++index)
     {
         const auto &data {input[index]};
-        futures.emplace_back(std::async(std::launch::async, [&result, &mtx, &data]()
+        futures.emplace_back(std::async(std::launch::async, [&data, sum_function]()
         {
-            for(const auto &item : data)
-            {
-                if(item)
-                {
-                    std::unique_lock<std::mutex> lock{mtx};
-                    ++result;
-                }
-            }
-            return 0;
+            ComputeSumOnIndividualVector(data, sum_function); 
         }));
     }
     for(auto & future : futures)
     {
         future.wait();
     }
+}
+
+size_t GetParallelResulMutex(const std::vector<std::vector<bool>>& input)
+{
+    size_t result {0};
+    std::mutex mutex;
+
+    RunSumUsingVectorOfFutures(input, [&result, &mutex]()
+    {
+        std::unique_lock<std::mutex> lock{mutex};
+        ++result;
+    });
     return result;
 }
 
 size_t GetParallelResulAtomic(const std::vector<std::vector<bool>>& input)
 {
     std::atomic<size_t> result {0};
-    // spawn a number of threads equal to input.size() and have each one add to result
-    // change result to be atomic
-    std::vector<std::future<int>> futures;
-    futures.reserve(input.size());
-    for(size_t index{0}; index < input.size(); ++index)
+
+    RunSumUsingVectorOfFutures(input, [&result]()
     {
-        const auto &data {input[index]};
-        futures.emplace_back(std::async(std::launch::async, [&result, &data]()
-        {
-            for(const auto &item : data)
-            {
-                if(item)
-                {
-                    ++result;
-                }
-            }
-            return 0;
-        }));
-    }
-    for(auto & future : futures)
-    {
-        future.wait();
-    }
+        ++result;
+    });
     return result;
 }
 
