@@ -135,6 +135,11 @@ TEST_CASE("Run all the tests")
 TEST_CASE("benchmarks")
 {
     auto testData {GetTestData(12, 100'000)};
+    BENCHMARK("Serial")
+    {
+      GetSerialResult(testData);
+    };
+
     BENCHMARK("Mutex")
     {
       GetParallelResulMutex(testData);
