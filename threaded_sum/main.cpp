@@ -97,9 +97,17 @@ size_t GetParallelResulAtomic(const std::vector<std::vector<bool>>& input)
 
 size_t GetParallelResulPartialSums(const std::vector<std::vector<bool>>& input)
 {
+    std::vector<size_t> partialSums(input.size(), 0);
+    RunSumUsingVectorOfFutures(input, [&partialSums](const size_t dataIndex)
+    {
+        ++partialSums[dataIndex];
+    });
+
     size_t result {0};
-    // spawn a number of threads equal to input.size() and have each one add to result
-    // instead of operating on result directly use one size_t per thread and sum the result at the end
+    for(const auto & partialSum : partialSums)
+    {
+        result += partialSum;
+    }
     return result;
 }
 
