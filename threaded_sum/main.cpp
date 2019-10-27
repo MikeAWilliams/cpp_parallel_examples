@@ -2,7 +2,11 @@
 #define CATCH_CONFIG_ENABLE_BENCHMARKING
 #include "catch2/catch.hpp"
 
+#include <future>
+#include <thread>
+#include <mutex>
 #include <random>
+#include <vector>
 
 std::vector<std::vector<bool>> GetTestData(const size_t vectors, const size_t elements)
 {
@@ -41,8 +45,33 @@ size_t GetSerialResult(const std::vector<std::vector<bool>>& input)
 size_t GetParallelResulMutex(const std::vector<std::vector<bool>>& input)
 {
     size_t result {0};
+    std::mutex mtx;
+
     // spawn a number of threads equal to input.size() and have each one add to result
     // use a mutex to protect result
+    std::vector<std::future<int>> futures;
+    futures.reserve(input.size());
+    for(size_t index{0}; index < input.size(); ++index)
+    {
+        const auto &data {input[index]};
+        futures.emplace_back(std::async(std::launch::async, [&result, &mtx, &data]()
+        {
+            for(const auto &item : data)
+            {
+                if(item)
+                {
+                    std::unique_lock<std::mutex> lock{mtx};
+                    ++result;
+                }
+            }
+            return 0;
+        }));
+        ++index;
+    }
+    for(auto & future : futures)
+    {
+        future.wait();
+    }
     return result;
 }
 
