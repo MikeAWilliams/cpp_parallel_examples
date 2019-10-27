@@ -29,7 +29,7 @@ std::vector<std::vector<bool>> GetTestData(const size_t vectors, const size_t el
     return result;
 }
 
-void ComputeSumOnIndividualVector(const std::vector<bool>& data, const size_t dataIndex, tl::function_ref<void(const size_t)> sum_function)
+void ComputeSumOnVector(const std::vector<bool>& data, const size_t dataIndex, tl::function_ref<void(const size_t)> sum_function)
 {
     for(const auto & item : data)
     {
@@ -45,7 +45,7 @@ size_t GetSerialResult(const std::vector<std::vector<bool>>& input)
     size_t result {0};
     for(const auto & data : input)
     {
-        ComputeSumOnIndividualVector(data, 0, [&result](const size_t)
+        ComputeSumOnVector(data, 0, [&result](const size_t)
         {
             ++result;
         });
@@ -53,7 +53,7 @@ size_t GetSerialResult(const std::vector<std::vector<bool>>& input)
     return result;
 }
 
-void RunSumUsingVectorOfFutures(const std::vector<std::vector<bool>>& input, tl::function_ref<void(const size_t)> sum_function)
+void ComputeSumUsingVectorOfFutures(const std::vector<std::vector<bool>>& input, tl::function_ref<void(const size_t)> sum_function)
 {
     std::vector<std::future<void>> futures;
     futures.reserve(input.size());
@@ -62,7 +62,7 @@ void RunSumUsingVectorOfFutures(const std::vector<std::vector<bool>>& input, tl:
         const auto &data {input[index]};
         futures.emplace_back(std::async(std::launch::async, [&data, sum_function, index]()
         {
-            ComputeSumOnIndividualVector(data, index, sum_function); 
+            ComputeSumOnVector(data, index, sum_function); 
         }));
     }
     for(auto & future : futures)
@@ -76,7 +76,7 @@ size_t GetParallelResulMutex(const std::vector<std::vector<bool>>& input)
     size_t result {0};
     std::mutex mutex;
 
-    RunSumUsingVectorOfFutures(input, [&result, &mutex](const size_t)
+    ComputeSumUsingVectorOfFutures(input, [&result, &mutex](const size_t)
     {
         std::unique_lock<std::mutex> lock{mutex};
         ++result;
@@ -88,7 +88,7 @@ size_t GetParallelResulAtomic(const std::vector<std::vector<bool>>& input)
 {
     std::atomic<size_t> result {0};
 
-    RunSumUsingVectorOfFutures(input, [&result](const size_t)
+    ComputeSumUsingVectorOfFutures(input, [&result](const size_t)
     {
         ++result;
     });
@@ -98,7 +98,7 @@ size_t GetParallelResulAtomic(const std::vector<std::vector<bool>>& input)
 size_t GetParallelResulPartialSums(const std::vector<std::vector<bool>>& input)
 {
     std::vector<size_t> partialSums(input.size(), 0);
-    RunSumUsingVectorOfFutures(input, [&partialSums](const size_t dataIndex)
+    ComputeSumUsingVectorOfFutures(input, [&partialSums](const size_t dataIndex)
     {
         ++partialSums[dataIndex];
     });
