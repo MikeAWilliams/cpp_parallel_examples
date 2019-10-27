@@ -2,6 +2,7 @@
 #define CATCH_CONFIG_ENABLE_BENCHMARKING
 #include "catch2/catch.hpp"
 
+#include <atomic>
 #include <future>
 #include <thread>
 #include <mutex>
@@ -66,7 +67,6 @@ size_t GetParallelResulMutex(const std::vector<std::vector<bool>>& input)
             }
             return 0;
         }));
-        ++index;
     }
     for(auto & future : futures)
     {
@@ -77,9 +77,30 @@ size_t GetParallelResulMutex(const std::vector<std::vector<bool>>& input)
 
 size_t GetParallelResulAtomic(const std::vector<std::vector<bool>>& input)
 {
-    size_t result {0};
+    std::atomic<size_t> result {0};
     // spawn a number of threads equal to input.size() and have each one add to result
     // change result to be atomic
+    std::vector<std::future<int>> futures;
+    futures.reserve(input.size());
+    for(size_t index{0}; index < input.size(); ++index)
+    {
+        const auto &data {input[index]};
+        futures.emplace_back(std::async(std::launch::async, [&result, &data]()
+        {
+            for(const auto &item : data)
+            {
+                if(item)
+                {
+                    ++result;
+                }
+            }
+            return 0;
+        }));
+    }
+    for(auto & future : futures)
+    {
+        future.wait();
+    }
     return result;
 }
 
