@@ -20,6 +20,7 @@ std::vector<double> GetTestData(const size_t elements, const double mean, const 
     }
     return result;
 }
+
 // based on Anthony Williams parallel_accumulate
 template<typename iterator>
 struct max_block
@@ -65,7 +66,7 @@ iterator ParallelMaxElement(iterator begin, iterator end)
     std::vector<std::thread>  threads(num_threads - 1);
 
     iterator block_start = begin;
-    for(unsigned long i=0;i<(num_threads-1);++i)
+    for(unsigned long i=0; i < (num_threads-1); ++i)
     {
         iterator block_end = block_start;
         std::advance(block_end, block_size);
@@ -77,20 +78,11 @@ iterator ParallelMaxElement(iterator begin, iterator end)
     
     std::for_each(threads.begin(), threads.end(), std::mem_fn(&std::thread::join));
 
-    iterator result {results[0]};
-    for(iterator iter : results)
-    {
-        if(*iter > *result)
+    return *std::max_element(results.begin(), results.end(), 
+        [](iterator a, iterator b)
         {
-            result = iter;
-        }
-    }
-    return result;
-    //return *std::max_element(results.begin(), results.end(), 
-        //[](iterator a, iterator b)
-        //{
-            //return *b < *a;
-        //});
+            return *a < *b;
+        });
 }
 
 
