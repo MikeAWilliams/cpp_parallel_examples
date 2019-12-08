@@ -155,3 +155,35 @@ TEST_CASE("Notify_all")
 
     REQUIRE(10 == (count1 + count2));
 }
+
+TEST_CASE("Notify_one two threads")
+{
+    resetGlobals();
+    int count1 {0};
+    auto processFut1 {std::async(std::launch::async, dataProcessingThread, 
+        [&count1](const double data)
+        {
+            std::cout << "Process data 1 " << data << std::endl;
+            ++count1;
+        })};
+
+    int count2 {0};
+    auto processFut2 {std::async(std::launch::async, dataProcessingThread, 
+        [&count2](const double data)
+        {
+            std::cout << "Process data 2 " << data << std::endl;
+            ++count2;
+        })};
+
+    auto prepFut {std::async(std::launch::async, dataPreparationThread,
+        [&notifier](){
+            notifier.notify_one();
+        })};
+
+    processFut1.wait();
+    processFut2.wait();
+
+    std::cout << count1 << " " << count2 << std::endl;
+
+    REQUIRE(10 == (count1 + count2));
+}
