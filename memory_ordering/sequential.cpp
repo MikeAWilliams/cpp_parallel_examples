@@ -53,6 +53,7 @@ void read_y_then_x()
         ++z;
     }
 }
+
 TEST_CASE("sequential")
 {
     x = false;
