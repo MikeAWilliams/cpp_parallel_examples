@@ -70,6 +70,7 @@ TEST_CASE("sequential")
     c.join();
     d.join();
 
+    // mostly 1 but sometimes 2
     std::cout << z << std::endl;
     REQUIRE(0 != z.load());
 }
