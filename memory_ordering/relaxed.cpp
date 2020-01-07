@@ -1,3 +1,4 @@
+// modified from examples in C++ Consurrency In Action Second Edition, Anthony Williams
 #include "catch2/catch.hpp"
 
 #include <atomic>
