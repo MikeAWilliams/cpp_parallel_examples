@@ -6,63 +6,60 @@
 #include <iostream>
 #include <mutex>
 #include <numeric>
+#include <optional>
 #include <random>
 #include <thread>
 #include <unordered_set>
 #include <vector>
 
-constexpr auto MAX_SIZE {10'000};
 constexpr auto MAX_TO_INSERT {200};
 
-template<class stack>
-void TestStack(stack& container)
+void RemoveBFromA(std::unordered_set<int>& a, const std::unordered_set<int>& b)
 {
-    std::atomic<bool> done {false};
-    auto populate {std::async(std::launch::async,
-        [&container, &done]()
-        {
-            for(int i{0}; i < MAX_TO_INSERT; ++i)
-            {
-                container.Push(i);
-            }
-            done = true;
-        })};
-
-    auto consume {std::async(std::launch::async,
-        [&container, &done]()
-        {
-            std::vector<int> toFillSet(MAX_TO_INSERT);
-            std::iota(toFillSet.begin(), toFillSet.end(), 0);
-            std::unordered_set<int> toFind{toFillSet.begin(), toFillSet.end()};
-
-            while(true)
-            {
-                if(done)
-                {
-                    if(0 == container.Size())
-                    {
-                        break;
-                    }
-                }
-                if(container.Size() <= 0)
-                {
-                    continue;
-                }
-                auto result {container.Pop()};
-                auto findIter {toFind.find(result)};
-                REQUIRE_FALSE(toFind.end() == findIter);
-                toFind.erase(findIter);
-            }
-
-            REQUIRE(0 == toFind.size());
-        })};
-
-        populate.wait();
-        consume.wait();
-        REQUIRE(0 == container.Size());
+    for(const auto& item : b)
+    {
+        auto findIter {a.find(item)};
+        REQUIRE(a.end() != findIter);
+        a.erase(findIter);
+    }
 }
 
-class StackMutex
+template<class Container>
+std::unordered_set<int> RemoveItems(Container& container)
+{
+    std::unordered_set<int> result;
+    while(true)
+    {
+        auto item {container.Retrieve()};
+        if(!item.has_value())
+        {
+            break;
+        }
+        result.insert(*item);
+    }
+    return result;
+}
+
+template<class Container>
+void TestContainer()
+{
+    std::vector<int> data(MAX_TO_INSERT);
+    std::iota(data.begin(), data.end(), 0);
+    std::unordered_set<int> allToRemove{data.begin(), data.end()};
+
+    Container testObject(std::move(data));
+    auto consume1 {std::async(std::launch::async, [&testObject](){return RemoveItems(testObject);})};
+    auto consume2 {std::async(std::launch::async, [&testObject](){return RemoveItems(testObject);})};
+
+    auto removedSet1 {consume1.get()};
+    auto removedSet2 {consume2.get()};
+
+    RemoveBFromA(allToRemove, removedSet1);
+    RemoveBFromA(allToRemove, removedSet2);
+    REQUIRE(0 == allToRemove.size());
+}
+
+class ContainerMutex
 {
 private:
     std::vector<int> m_data;
@@ -70,96 +67,86 @@ private:
     std::mutex m_mutex;
 
 public:
-    StackMutex()
-        : m_data(MAX_SIZE)
-        , m_index {-1}
+    ContainerMutex(std::vector<int> data)
+        : m_data(std::move(data))
+        , m_index {static_cast<int>(m_data.size() - 1)}
     {
 
     }
-    void Push(int item)
-    {
-        std::lock_guard lock{m_mutex};
-        ++m_index;
-        REQUIRE(m_index < MAX_SIZE);
-        REQUIRE(m_index > -1);
-        m_data[m_index] = item;
-    }
 
-    int Pop()
+    std::optional<int> Retrieve()
     {
         std::lock_guard lock{m_mutex};
-        REQUIRE(m_index > -1);
+        if(m_index < 0)
+        {
+            return {};
+        }
         int result {m_data[m_index]};
         --m_index;
         return result;
-    }
-
-    int Size()
-    {
-        std::lock_guard lock{m_mutex};
-        return m_index + 1;
     }
 };
 
 TEST_CASE("Using mutex")
 {
-    StackMutex container;
-    TestStack(container);
+    TestContainer<ContainerMutex>();
 }
 
-class StackAtomic
+class ContainerSeqCst
 {
 private:
     std::vector<int> m_data;
-    std::atomic<int> m_writeIndex;
-    std::atomic<int> m_readIndex;
+    std::atomic<int> m_index;
 
 public:
-    StackAtomic()
-        : m_data(MAX_SIZE)
-        , m_writeIndex {-1}
-        , m_readIndex {0}
+    ContainerSeqCst(std::vector<int> data)
+        : m_data(std::move(data))
+        , m_index {static_cast<int>(m_data.size() - 1)}
     {
 
     }
-    void Push(int item)
-    {
-        ++m_writeIndex;
-        REQUIRE(m_writeIndex < MAX_SIZE);
-        m_data[m_writeIndex] = item;
-    }
 
-    int Pop()
+    std::optional<int> Retrieve()
     {
-        REQUIRE(m_readIndex < MAX_SIZE);
-        int result {m_data[m_readIndex]};
-        ++m_readIndex;
-        return result;
-    }
-
-    int Size()
-    {
-        return m_writeIndex - m_readIndex + 1;
+        if(m_index < 0)
+        {
+            return {};
+        }
+        auto indexToUse {m_index.fetch_sub(1, std::memory_order_seq_cst)};
+        return m_data[indexToUse];
     }
 };
 
-TEST_CASE("Using atomic")
+TEST_CASE("Using seqcst")
 {
-    StackAtomic container;
-    TestStack(container);
+    TestContainer<ContainerSeqCst>();
+}
+
+template<class Container>
+void ExerciseContainer()
+{
+    std::vector<int> data(MAX_TO_INSERT);
+    std::iota(data.begin(), data.end(), 0);
+    std::unordered_set<int> allToRemove{data.begin(), data.end()};
+
+    Container testObject(std::move(data));
+    auto consume1 {std::async(std::launch::async, [&testObject](){return RemoveItems(testObject);})};
+    auto consume2 {std::async(std::launch::async, [&testObject](){return RemoveItems(testObject);})};
+
+    consume1.wait();
+    consume2.wait();
+
 }
 
 TEST_CASE("benchmarks")
 {
     BENCHMARK("mutex")
     {
-        StackMutex container;
-        TestStack(container);
+        ExerciseContainer<ContainerMutex>();
     };
 
-    BENCHMARK("atomic")
+    BENCHMARK("SeqCst")
     {
-        StackAtomic container;
-        TestStack(container);
+        ExerciseContainer<ContainerSeqCst>();
     };
 }
