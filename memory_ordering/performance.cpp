@@ -108,11 +108,11 @@ public:
 
     std::optional<int> Retrieve()
     {
-        if(m_index < 0)
+        auto indexToUse {m_index.fetch_sub(1, std::memory_order_seq_cst)};
+        if(indexToUse < 0)
         {
             return {};
         }
-        auto indexToUse {m_index.fetch_sub(1, std::memory_order_seq_cst)};
         return m_data[indexToUse];
     }
 };
@@ -120,6 +120,36 @@ public:
 TEST_CASE("Using seqcst")
 {
     TestContainer<ContainerSeqCst>();
+}
+
+class ContainerAcquire
+{
+private:
+    std::vector<int> m_data;
+    std::atomic<int> m_index;
+
+public:
+    ContainerAcquire(std::vector<int> data)
+        : m_data(std::move(data))
+        , m_index {static_cast<int>(m_data.size() - 1)}
+    {
+
+    }
+
+    std::optional<int> Retrieve()
+    {
+        auto indexToUse {m_index.fetch_sub(1, std::memory_order_acquire)};
+        if(indexToUse < 0)
+        {
+            return {};
+        }
+        return m_data[indexToUse];
+    }
+};
+
+TEST_CASE("Using Acquire")
+{
+    TestContainer<ContainerAcquire>();
 }
 
 template<class Container>
@@ -148,5 +178,10 @@ TEST_CASE("benchmarks")
     BENCHMARK("SeqCst")
     {
         ExerciseContainer<ContainerSeqCst>();
+    };
+
+    BENCHMARK("Acquire")
+    {
+        ExerciseContainer<ContainerAcquire>();
     };
 }
