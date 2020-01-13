@@ -33,6 +33,7 @@ void TestStack(stack& container)
             std::vector<int> toFillSet(MAX_TO_INSERT);
             std::iota(toFillSet.begin(), toFillSet.end(), 0);
             std::unordered_set<int> toFind{toFillSet.begin(), toFillSet.end()};
+
             while(true)
             {
                 if(done)
@@ -42,7 +43,7 @@ void TestStack(stack& container)
                         break;
                     }
                 }
-                if(0 == container.Size())
+                if(container.Size() <= 0)
                 {
                     continue;
                 }
@@ -51,8 +52,10 @@ void TestStack(stack& container)
                 REQUIRE_FALSE(toFind.end() == findIter);
                 toFind.erase(findIter);
             }
+
             REQUIRE(0 == toFind.size());
         })};
+
         populate.wait();
         consume.wait();
         REQUIRE(0 == container.Size());
@@ -100,5 +103,47 @@ public:
 TEST_CASE("Using mutex")
 {
     StackMutex container;
+    TestStack(container);
+}
+
+class StackAtomic
+{
+private:
+    std::vector<int> m_data;
+    std::atomic<int> m_writeIndex;
+    std::atomic<int> m_readIndex;
+
+public:
+    StackAtomic()
+        : m_data(MAX_SIZE)
+        , m_writeIndex {-1}
+        , m_readIndex {0}
+    {
+
+    }
+    void Push(int item)
+    {
+        ++m_writeIndex;
+        REQUIRE(m_writeIndex < MAX_SIZE);
+        m_data[m_writeIndex] = item;
+    }
+
+    int Pop()
+    {
+        REQUIRE(m_readIndex < MAX_SIZE);
+        int result {m_data[m_readIndex]};
+        ++m_readIndex;
+        return result;
+    }
+
+    int Size()
+    {
+        return m_writeIndex - m_readIndex + 1;
+    }
+};
+
+TEST_CASE("Using atomic")
+{
+    StackAtomic container;
     TestStack(container);
 }
