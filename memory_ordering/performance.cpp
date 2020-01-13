@@ -1,3 +1,4 @@
+#define CATCH_CONFIG_ENABLE_BENCHMARKING
 #include "catch2/catch.hpp"
 
 #include <atomic>
@@ -146,4 +147,19 @@ TEST_CASE("Using atomic")
 {
     StackAtomic container;
     TestStack(container);
+}
+
+TEST_CASE("benchmarks")
+{
+    BENCHMARK("mutex")
+    {
+        StackMutex container;
+        TestStack(container);
+    };
+
+    BENCHMARK("atomic")
+    {
+        StackAtomic container;
+        TestStack(container);
+    };
 }
