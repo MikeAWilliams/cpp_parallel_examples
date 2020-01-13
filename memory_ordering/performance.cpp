@@ -12,7 +12,7 @@
 #include <unordered_set>
 #include <vector>
 
-constexpr auto MAX_TO_INSERT {200};
+constexpr auto MAX_TO_INSERT {200'000};
 
 void RemoveBFromA(std::unordered_set<int>& a, const std::unordered_set<int>& b)
 {
@@ -189,15 +189,15 @@ benchmark name                                  samples       iterations    esti
                                                 mean          low mean      high mean
                                                 std dev       low std dev   high std dev
 -------------------------------------------------------------------------------
-mutex                                                   100            5    85.166 ms
-                                                 225.864 us    218.22 us   234.366 us
-                                                  41.081 us    37.341 us    45.094 us
+mutex                                                   100            1    9.21604 s
+                                                 91.4944 ms   91.0206 ms   91.9721 ms
+                                                 2.43371 ms   2.22498 ms   2.68683 ms
 
-SeqCst                                                  100            5    83.448 ms
-                                                 188.481 us   183.267 us   195.624 us
-                                                   30.91 us    24.303 us    39.051 us
+SeqCst                                                  100            1    8.22779 s
+                                                 82.5275 ms   82.3719 ms   82.6936 ms
+                                                 818.591 us   721.944 us   978.407 us
 
-Acquire                                                 100            5    82.764 ms
-                                                 190.682 us   184.139 us   198.706 us
-                                                  36.909 us    31.205 us    42.673 us
+Acquire                                                 100            1    8.29354 s
+                                                 82.7256 ms    82.541 ms   82.9394 ms
+                                                  1.0182 ms   860.456 us   1.24135 ms
 */
