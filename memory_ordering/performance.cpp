@@ -165,7 +165,6 @@ void ExerciseContainer()
 
     consume1.wait();
     consume2.wait();
-
 }
 
 TEST_CASE("benchmarks")
@@ -185,3 +184,20 @@ TEST_CASE("benchmarks")
         ExerciseContainer<ContainerAcquire>();
     };
 }
+/* Typical results. Notice that memory_order_acquire does not win
+benchmark name                                  samples       iterations    estimated
+                                                mean          low mean      high mean
+                                                std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+mutex                                                   100            5    85.166 ms
+                                                 225.864 us    218.22 us   234.366 us
+                                                  41.081 us    37.341 us    45.094 us
+
+SeqCst                                                  100            5    83.448 ms
+                                                 188.481 us   183.267 us   195.624 us
+                                                   30.91 us    24.303 us    39.051 us
+
+Acquire                                                 100            5    82.764 ms
+                                                 190.682 us   184.139 us   198.706 us
+                                                  36.909 us    31.205 us    42.673 us
+*/
